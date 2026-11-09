@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#147d64">
+  <title>Customer bill | Nisarg Manager</title>
+  <style>
+    :root{font-family:Arial,Helvetica,sans-serif;color:#17231f;background:#eef3f0;font-size:14px}*{box-sizing:border-box}body{margin:0;padding:24px}.toolbar{max-width:900px;margin:0 auto 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.toolbar label{font-weight:700}.toolbar select,.toolbar button{font:inherit;padding:10px 12px;border:1px solid #cbd8d0;border-radius:6px;background:#fff}.toolbar select{min-width:240px;flex:1}.toolbar button{cursor:pointer;background:#147d64;color:white;border-color:#147d64;font-weight:700}.toolbar .hint{color:#607168;font-size:12px}.paper{max-width:900px;min-height:1100px;margin:auto;background:#fff;padding:36px;border:1px solid #dce5df;box-shadow:0 6px 24px #17231f12}.brand{display:flex;align-items:center;gap:14px}.brand-mark{width:62px;height:62px;flex:none}.brand-name{margin:0;color:#4d8c2c;font-size:25px;line-height:1.08}.brand-sub{margin:5px 0 0;color:#5a665f;font-size:12px;letter-spacing:.08em}.business-contact{margin-left:auto;text-align:right;white-space:pre-line;line-height:1.5;color:#39473f;font-size:12px}.rule{height:3px;background:#608f3b;margin:18px 0 5px}.tagline{text-align:center;margin:0 0 16px;color:#4b594f;font-size:12px}.title-row{display:flex;align-items:center;justify-content:space-between;border:1px solid #78a14f;padding:10px 12px}.title-row h1{margin:0;color:#548c31;font-size:22px;letter-spacing:.04em}.title-row strong{font-size:11px}.top-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid #78a14f;border-top:0}.customer,.invoice-meta{padding:12px;min-height:145px}.customer{border-right:1px solid #78a14f}.section-title{font-weight:700;text-align:center;padding-bottom:7px;margin-bottom:8px;border-bottom:1px solid #d5e0d0}.details{display:grid;grid-template-columns:105px 1fr;gap:6px 8px;font-size:12px;line-height:1.35}.details b{color:#2c3932}.invoice-meta .details{grid-template-columns:100px 1fr}.items-wrap{margin-top:16px;overflow-x:auto}.items{width:100%;border-collapse:collapse;font-size:11px}.items th,.items td{border:1px solid #91aa7c;padding:8px 6px;text-align:right;vertical-align:top}.items th{background:#f4f8ef;color:#28352d;text-align:center}.items th:nth-child(2),.items td:nth-child(2){text-align:left}.items td:first-child{text-align:center}.items tfoot td{font-weight:700}.totals{width:min(360px,100%);margin:12px 0 0 auto;border-collapse:collapse}.totals td{padding:5px 8px;border-bottom:1px solid #dce5d8}.totals td:last-child{text-align:right;font-weight:700}.words{margin:14px 0;padding:10px;border:1px solid #91aa7c;font-size:12px}.words strong{display:block;margin-top:5px;text-transform:uppercase}.bottom-grid{display:grid;grid-template-columns:1fr 1fr;margin-top:16px;border:1px solid #91aa7c}.bottom-grid section{padding:12px;min-height:130px}.bottom-grid section+section{border-left:1px solid #91aa7c}.signature{margin-top:42px;border-top:1px solid #59665c;padding-top:7px;text-align:center;font-size:11px}.footer{text-align:center;color:#4f5c53;font-size:12px;margin-top:15px}.empty{padding:50px 20px;text-align:center;color:#64736a;border:1px dashed #a8b7ac;margin-top:20px}.small{font-size:11px;color:#58665d;line-height:1.45}.muted{color:#68756d}
+    @media print{ :root{background:#fff;font-size:11px}body{padding:0;background:#fff}.toolbar{display:none}.paper{width:100%;max-width:none;min-height:0;margin:0;padding:12mm;border:0;box-shadow:none}.items{font-size:9px}.items th,.items td{padding:5px 4px}.top-grid,.title-row,.bottom-grid,.items th,.items td,.words{print-color-adjust:exact;-webkit-print-color-adjust:exact}@page{size:A4;margin:8mm} }
+    @media(max-width:620px){body{padding:10px}.paper{padding:18px}.brand{align-items:flex-start}.brand-mark{width:48px;height:48px}.brand-name{font-size:19px}.business-contact{font-size:10px}.title-row h1{font-size:17px}.top-grid{grid-template-columns:1fr}.customer{border-right:0;border-bottom:1px solid #78a14f}.customer,.invoice-meta{min-height:0}.details{grid-template-columns:90px 1fr}}
+  </style>
+</head>
+<body>
+  <div class="toolbar" aria-label="Bill controls">
+    <label for="saleSelect">Customer sale</label>
+    <select id="saleSelect"><option value="">Loading sales…</option></select>
+    <button id="printBill" type="button">Print / Save PDF</button>
+    <span class="hint">In the print dialog, select “Save as PDF” to download the customer bill.</span>
+  </div>
+  <main class="paper" id="bill" aria-live="polite"></main>
+<script>
+'use strict';
+(() => {
+  const $ = (selector) => document.querySelector(selector);
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const read = (key, fallback) => { try { const value = JSON.parse(localStorage.getItem(key)); return value ?? fallback; } catch { return fallback; } };
+  const money = (value, currency) => { const amount = Number(value) || 0; try { return new Intl.NumberFormat(undefined, {style:'currency', currency:currency || 'INR'}).format(amount); } catch { return `${currency || 'INR'} ${amount.toFixed(2)}`; } };
+  const sales = read('nisarg_sales', []);
+  const profile = read('nisarg_profile', {});
+  const select = $('#saleSelect');
+  const bill = $('#bill');
+  const dateText = (value) => { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(undefined, {year:'numeric', month:'short', day:'2-digit'}); };
+  const saleDate = (sale) => sale.timestamp || sale.date || sale.createdAt || sale.created_at;
+  const saleId = (sale) => String(sale.id ?? sale.number ?? sale.invoiceNumber ?? '');
+  const patient = (sale) => sale.patient || {};
+  const customerName = (sale) => patient(sale).name || sale.patientName || sale.customerName || 'Walk-in customer';
+  const getItems = (sale) => Array.isArray(sale.items) ? sale.items : (Array.isArray(sale.products) ? sale.products : []);
+  const itemName = (item) => item.name || item.medicineName || item.productName || item.medicine || 'Item';
+  const itemQty = (item) => Number(item.quantity ?? item.qty ?? 0) || 0;
+  const itemRate = (item) => Number(item.price ?? item.rate ?? item.unitPrice ?? item.unit_price ?? 0) || 0;
+  const itemTotal = (item) => Number(item.total ?? item.lineTotal ?? item.amount ?? item.subtotal ?? itemQty(item) * itemRate(item)) || 0;
+  const logo = '<svg class="brand-mark" viewBox="0 0 64 64" role="img" aria-label="Nisarg logo"><rect x="20" y="3" width="24" height="58" rx="6" fill="#5a9c2e"/><rect x="3" y="20" width="58" height="24" rx="6" fill="#5a9c2e"/><path d="M20 33h9l4-9 5 17 4-8h6" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const showEmpty = (message) => { bill.innerHTML = `<div class="empty">${esc(message)}</div>`; };
+  const render = (sale) => {
+    if (!sale) { showEmpty('No saved sales found on this browser. Complete a sale in Nisarg Manager first, then open this page again.'); return; }
+    const items = getItems(sale);
+    const currency = profile.currency || sale.currency || 'INR';
+    const itemSubtotal = items.reduce((sum, item) => sum + itemTotal(item), 0);
+    const discount = Number(sale.discount ?? sale.discountTotal ?? 0) || 0;
+    const tax = Number(sale.tax ?? sale.taxAmount ?? sale.gstAmount ?? 0) || 0;
+    const total = Number(sale.total ?? sale.grandTotal ?? sale.amount ?? (itemSubtotal - discount + tax)) || 0;
+    const customer = patient(sale);
+    const address = customer.address || sale.patientAddress || sale.customerAddress || '';
+    const phone = customer.phone || sale.patientPhone || sale.customerPhone || '';
+    const taxNumber = profile.taxNumber || '';
+    const rows = items.length ? items.map((item, index) => `<tr><td>${index + 1}</td><td>${esc(itemName(item))}${item.batch ? `<br><span class="small">Batch: ${esc(item.batch)}</span>` : ''}</td><td>${esc(item.hsn || item.hsnCode || '—')}</td><td>${itemQty(item)}</td><td>${money(itemRate(item), currency)}</td><td>${money(itemTotal(item), currency)}</td></tr>`).join('') : '<tr><td colspan="6">No item details recorded for this sale.</td></tr>';
+    const meta = [saleId(sale) ? ['Invoice number', saleId(sale)] : null, ['Invoice date', dateText(saleDate(sale))], ['Payment method', sale.payment || sale.paymentMethod || '—'], ['Payment reference', sale.paymentReference || sale.reference || '—']].filter(Boolean);
+    bill.innerHTML = `<header class="brand">${logo}<div><h2 class="brand-name">${esc(profile.shopName || 'Nisarg Pharmacy')}</h2><p class="brand-sub">NISARG • PHARMACY &amp; HEALTHCARE</p></div><div class="business-contact">${esc([profile.address, profile.phone, profile.email].filter(Boolean).join('\n'))}</div></header>
+      <div class="rule"></div><p class="tagline">A single stop for all your healthcare needs</p>
+      <div class="title-row">${taxNumber ? `<strong>${esc(taxNumber)}</strong>` : '<strong> CUSTOMER BILL</strong>'}<h1>${taxNumber ? 'TAX INVOICE' : 'CUSTOMER INVOICE'}</h1><strong>ORIGINAL FOR CUSTOMER</strong></div>
+      <div class="top-grid"><section class="customer"><div class="section-title">Customer details</div><div class="details"><b>Name</b><span>${esc(customerName(sale))}</span><b>Phone</b><span>${esc(phone || '—')}</span><b>Address</b><span>${esc(address || '—')}</span>${customer.email || sale.patientEmail ? `<b>Email</b><span>${esc(customer.email || sale.patientEmail)}</span>` : ''}</div></section><section class="invoice-meta"><div class="section-title">Invoice details</div><div class="details">${meta.map(([label, value]) => `<b>${esc(label)}</b><span>${esc(value)}</span>`).join('')}</div></section></div>
+      <div class="items-wrap"><table class="items"><thead><tr><th>Sr. No.</th><th>Product / service</th><th>HSN / SAC</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="3">Total quantity</td><td>${items.reduce((sum, item) => sum + itemQty(item), 0)}</td><td>Subtotal</td><td>${money(itemSubtotal, currency)}</td></tr></tfoot></table></div>
+      <table class="totals"><tbody><tr><td>Subtotal</td><td>${money(itemSubtotal, currency)}</td></tr>${discount ? `<tr><td>Discount</td><td>− ${money(discount, currency)}</td></tr>` : ''}${tax ? `<tr><td>Tax (as recorded)</td><td>${money(tax, currency)}</td></tr>` : ''}<tr><td><strong>Grand total</strong></td><td><strong>${money(total, currency)}</strong></td></tr></tbody></table>
+      <div class="words"><b>Payment</b><span> ${esc(sale.payment || sale.paymentMethod || '—')}</span><p class="small">Thank you for your order. Please keep this bill for your records.</p></div>
+      <div class="bottom-grid"><section><div class="section-title">Business details</div><div class="small">${esc([profile.shopName || 'Nisarg Pharmacy', profile.ownerName, profile.licenseNumber ? `License: ${profile.licenseNumber}` : '', taxNumber ? `Tax number: ${taxNumber}` : ''].filter(Boolean).join('\n'))}</div></section><section><div class="section-title">For ${esc(profile.shopName || 'Nisarg Pharmacy')}</div><div class="signature">Authorised signature</div></section></div>
+      <p class="footer">Thank you for your order! We look forward to serving you again.</p>`;
+  };
+  const update = () => { const sale = sales.find((entry) => saleId(entry) === select.value) || sales[0]; if (sale) { select.value = saleId(sale); render(sale); } else render(null); };
+  if (!Array.isArray(sales) || !sales.length) { select.innerHTML = '<option value="">No saved sales</option>'; render(null); }
+  else {
+    const sorted = [...sales].sort((a, b) => new Date(saleDate(b) || 0) - new Date(saleDate(a) || 0));
+    select.innerHTML = sorted.map((sale) => `<option value="${esc(saleId(sale))}">${esc(saleId(sale) || 'Sale')} — ${esc(customerName(sale))} — ${esc(dateText(saleDate(sale)))}</option>`).join('');
+    const requested = new URLSearchParams(location.search).get('sale');
+    if (requested && sorted.some((sale) => saleId(sale) === requested)) select.value = requested;
+    update();
+  }
+  select.addEventListener('change', update);
+  $('#printBill').addEventListener('click', () => { if (sales.length) window.print(); });
+})();
+</script>
+</body>
+</html>
